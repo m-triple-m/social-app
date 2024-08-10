@@ -22,6 +22,7 @@ const AddPost = () => {
         defaultValues: {
             title: "",
             description: "",
+            postedOn: new Date().toISOString(),
         },
     });
 
@@ -102,6 +103,7 @@ const AddPost = () => {
     }
 
     const publishPost = async (data) => {
+        data.image = downloadUrl;
         const docRef = await addDoc(collection(db, 'socialpost'), data);
         console.log(docRef);
     };
