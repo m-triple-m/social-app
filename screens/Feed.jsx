@@ -1,22 +1,31 @@
 import { collection, doc, getDoc, getDocs, getFirestore, setDoc } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import app from '../firebaseConfig';
-import { Button, Card, IconButton } from 'react-native-paper';
+import { Avatar, Button, Card, IconButton } from 'react-native-paper';
 import Comments from './Comments';
+import ReactTimeAgo, { useTimeAgo } from 'react-time-ago';
 // import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 
 const db = getFirestore(app);
 
+const FormatDate = ({ date }) => {
+  console.log(date);
+
+  const result = useTimeAgo({ date: new Date(), locale: 'en-US' });
+  return <Text>{result}</Text>
+}
+
 const FeedCard = ({ data, feedList, setFeedList, index }) => {
 
   const [showComments, setShowComments] = useState(false);
+  const [liked, setLiked] = useState(false);
 
   const likePost = async () => {
 
     const ref = doc(db, 'socialpost', data.id);
     await setDoc(ref,
-      { likes: (data.likes ? data.likes : 0) + 1 },
+      { likes: (data.likes ? data.likes : 0) + (liked ? -1 : 1) },
       { merge: true });
 
     const updateData = (await getDoc(ref)).data();
@@ -24,28 +33,39 @@ const FeedCard = ({ data, feedList, setFeedList, index }) => {
     const temp = feedList;
     temp[index] = { ...data, likes: updateData.likes };
     setFeedList([...temp]);
-
+    setLiked(!liked);
   }
 
   return <>
     <Card key={data.id} style={styles.card}>
-      <Card.Title title={data.title} subtitle={data.description} />
-      <Text>{new Date(data.postedOn).toDateString()}</Text>
+      <Card.Title
+        title={<Text style={{ fontWeight: 'bold' }}>{data.title}</Text>}
+        subtitle={new Date(data.postedOn).toLocaleDateString()}
+        left={props => <Avatar.Image
+          {...props}
+          size={50}
+          source={{ uri: data.image }}
+        />}
+        right={props => <IconButton {...props} icon="dots-vertical" />}
+      />
+      {/* <Text>{new Date(data.postedOn).toLocaleDateString()}</Text> */}
       <Card.Cover source={{ uri: data.image }} />
       <View style={styles.iconContainer}>
         <View style={styles.iconButton}>
           <IconButton
+            iconColor='red'
             onPress={likePost}
-            icon="heart-outline"
+            icon={liked ? "heart" : "heart-outline"}
             mode="contained" />
           <Text>{data.likes ? data.likes : "0"}</Text>
         </View>
         <View style={styles.iconButton}>
           <IconButton
+            iconColor='blue'
             onPress={() => setShowComments(true)}
             icon="comment-outline"
             mode="contained" />
-            <Text>{data.comments ? data.comments.length : "0"}</Text>
+          <Text>{data.comments ? data.comments.length : "0"}</Text>
         </View>
         <IconButton
           icon="share"
@@ -62,10 +82,25 @@ const FeedCard = ({ data, feedList, setFeedList, index }) => {
   </>
 }
 
+const tabs = ['Best Posts', 'Trending', 'New', 'Latest'];
+
+const TabList = ({ active, setActive }) => {
+  return <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 20 }}>
+    {tabs.map((tab) => (
+      <Button
+        onPress={() => setActive(tab)}
+        key={tab}
+        mode={active === tab ? 'contained' : 'outlined'}
+      >{tab}</Button>
+    ))}
+  </View>
+}
+
 const Feed = () => {
 
   const [feedList, setFeedList] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('Best Posts');
 
   const bottomSheetRef = useRef(null);
 
@@ -104,17 +139,21 @@ const Feed = () => {
 
   return (
     <View style={styles.container}>
-      <Text>Feed Page</Text>
+      {/* <ScrollView  > */}
+      <TabList active={activeTab} setActive={setActiveTab} />
+      {/* </ScrollView> */}
       {displayFeed()}
-
-
     </View>
   )
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   card: {
-    margin: 10
+    margin: 10,
+    padding: 10
   },
   iconContainer: {
     flexDirection: 'row',
